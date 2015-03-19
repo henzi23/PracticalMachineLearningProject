@@ -1,0 +1,79 @@
+---
+title: "Machine Learning - Barbell Lifting Data"
+author: "James Henzi"
+date: "Wednesday, March 18, 2015"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+  word_document: default
+---
+
+### Summary
+The goal of this project is to use a machine learning algorithm to generate a prediction model to predict the "classe"" variable from the Weight Lifting Exercise Dataset found at http://groupware.les.inf.puc-rio.br/har.  This report details the data exploration/preparation, model generation, model validation, and finally the testing results.
+
+
+### Data upload, exploration, cleaning, and preparation
+
+The csv files for the training and testing data is uploaded from the web. 
+```{r,cache=TRUE}
+training<-read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing<-read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+```
+
+A summary view of the training data (see appendix) shows that there are many parameters that provide little information useful for our prediction (very high percentage of NAs or blanks, date/time tags for measurments). Thus these parameters are removed.
+
+```{r, cache=TRUE,results='hide'}
+dataTrain<-training[,c(1:2,4,8:11,37:49,60:68,84:86,102,113:124,140,151:160)]
+dataTest<-testing[,c(1:2,4,8:11,37:49,60:68,84:86,102,113:124,140,151:160)]
+```
+
+Since the testing data does not include the result we are trying to predict (classe), we will need to slice the training data to create a validation data set that will be used to perform an interim test of the prediction model.
+
+```{r,warning=FALSE,message=FALSE,cache=TRUE}
+library(caret)
+set.seed(1234)
+inValidation<-createDataPartition(y=dataTrain$classe,p=0.75,list=F)
+train2<-dataTrain[inValidation,]
+validation<-dataTrain[-inValidation,]
+```
+
+### Model Creation
+
+Given that we are looking at a categorical classification based on a reasonably large number of parameters a tree type model would most likely be a good option.  Thus , it was decided to try a random forest model.
+
+```{r,cache=TRUE}
+set.seed(4321)
+modRF<-train(classe~.-X,data=train2,method="rf", ntree=50) 
+## X excluded as it is a column reference number
+## ntree set to 50 to reduce processing time
+```
+
+### Cross Validation
+
+After model generation we tested it out on the validation data set generated earlier.
+```{r,warning=FALSE,message=FALSE}
+library(caret)
+confusionMatrix(validation$classe,predict(modRF,validation))
+```
+
+From the confusion matrix we find that the model accurately classifies 99.37%.  This yields an expected out of sample error rate of 0.63%.  Since we achieved such a high level of accuracy, we will go with this model.
+
+
+### Testing
+
+The model is then applied to the test data set to predict the classifiaction for these 20 samples.
+
+```{r}
+predict(modRF,dataTest)
+```
+
+These predictions were then entered into the "Submission" portion of the project.  All 20 were predicted accurately!!
+
+### Appendix
+#### Summary of training data
+
+```{r}
+summary(training)
+```
+
